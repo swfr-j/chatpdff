@@ -2,8 +2,11 @@ import streamlit as st
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings
+from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
 from langchain.vectorstores.faiss import FAISS
+from langchain.memory import ConversationBufferMemory
+from langchain.chat_models.openai import ChatOpenAI
+from langchain.chains.conversational_retrieval.base import ConversationalRetrievalChain
 
 load_dotenv()
 
@@ -27,8 +30,20 @@ def get_text_chunks(text):
 
 def get_vector_store(chunks):
     embeddings = OpenAIEmbeddings()
+    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
     vectorstore = FAISS.from_texts(texts=chunks, embedding=embeddings)
     return vectorstore
+
+
+def get_conversation_chain(vector_store):
+    llm = ChatOpenAI()
+    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+    conversation_chain = ConversationalRetrievalChain.from_llm(
+        llm=llm,
+        retriever=vector_store.as_retriever(),
+        memory=memory,
+    )
+    return conversation_chain
 
 
 def main():
@@ -44,18 +59,20 @@ def main():
             accept_multiple_files=True,
         )
         if st.button("Process"):
+            # get pdf text
             with st.spinner("Processing your documents..."):
-                # get pdf text
                 raw_text = get_pdf_text(pdf_docs)
 
+            # get the text chunks
             with st.spinner("Splitting text into chunks..."):
-                # get the text chunks
                 chunks = get_text_chunks(raw_text)
 
+            # Create vector store
             with st.spinner("Creating vector store..."):
-                # Create vector store
                 vector_store = get_vector_store(chunks)
-                st.write(vector_store)
+
+            # create conversation chain
+            conversation = get_conversation_chain(vector_store)
 
 
 if __name__ == "__main__":
