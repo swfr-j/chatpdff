@@ -48,6 +48,10 @@ def get_conversation_chain(vector_store):
 
 def main():
     st.set_page_config(page_title="Chat with multiple pdfs", page_icon=":books:")
+
+    if "conversation" not in st.session_state:
+        st.session_state.conversation = None
+
     st.header("Chat with multiple pdfs")
     st.text_input("Ask a question about your documents: ")
 
@@ -72,7 +76,7 @@ def main():
                 vector_store = get_vector_store(chunks)
 
             # create conversation chain
-            conversation = get_conversation_chain(vector_store)
+            st.session_state.conversation = get_conversation_chain(vector_store)
 
 
 if __name__ == "__main__":
